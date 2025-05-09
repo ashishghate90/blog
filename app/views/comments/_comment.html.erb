@@ -1,0 +1,6 @@
+<div class="bg-gray-100 p-2 rounded my-2">
+  <p><strong><%= comment.user.email %>:</strong> <%= comment.body %></p>
+  <% if comment.user == current_user %>
+    <%= link_to "Delete", post_comment_path(comment.post, comment), method: :delete, class: "text-red-600 text-sm" %>
+  <% end %>
+</div>

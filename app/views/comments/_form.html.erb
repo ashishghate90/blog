@@ -1,0 +1,10 @@
+<h2 class="text-xl font-bold mt-4">Add a Comment</h2>
+
+<%= form_with model: [@post, @comment], local: true, class: "mt-4" do |f| %>
+  <div>
+    <%= f.text_area :body, class: "w-full p-2 border rounded", placeholder: "Write a comment..." %>
+  </div>
+  <div class="mt-2">
+    <%= f.submit "Post Comment", class: "bg-blue-600 text-white px-4 py-2 rounded" %>
+  </div>
+<% end %>
