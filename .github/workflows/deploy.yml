@@ -1,0 +1,69 @@
+name: Deploy Rails App to AWS EC2
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.0.0' # Match your Ruby version
+          bundler-cache: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmysqlclient-dev
+
+      - name: Build and package app
+        run: |
+          bundle install --without development test --deployment
+          RAILS_ENV=production bundle exec rake assets:precompile
+          tar -czvf release.tar.gz .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: app-release
+          path: release.tar.gz
+
+  deploy-to-ec2:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: app-release
+
+      - name: Extract files
+        run: tar -xzvf release.tar.gz
+
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: ${{ secrets.KNOWN_HOSTS }}
+
+      - name: Deploy to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_IP }} << 'EOF'
+          cd /var/www/myapp
+          sudo systemctl stop nginx
+          rm -rf /var/www/myapp/*
+          EOF
+
+          scp -r -o StrictHostKeyChecking=no * ubuntu@${{ secrets.EC2_IP }}:/var/www/myapp/
+
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_IP }} << 'EOF'
+          cd /var/www/myapp
+          bundle install --without development test --deployment
+          RAILS_ENV=production bundle exec rake db:migrate
+          sudo systemctl restart nginx
+          EOF
